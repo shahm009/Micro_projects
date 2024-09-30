@@ -1,53 +1,61 @@
-/*
-This code is made for Ardunio Uno. Adjust pins accordingly For ESP or other boards.
-*/
 const int trigPin = 2;   // Shared Trig pin
 const int echoPins[6] = {3, 4, 5, 6, 7, 8};  // Separate Echo pins for each sensor
-
-long duration;
-int distance[6];
+long duration;          // Variable to store echo duration
+int distance[6];        // Array to store distances from sensors
+const int ledPin = 12;  // LED pin
 
 void setup() {
   Serial.begin(9600);                    // Start Serial communication
-  pinMode(trigPin, OUTPUT);              // Set the Trig pin as OUTPUT
-  
+  pinMode(trigPin, OUTPUT);               // Set the Trig pin as OUTPUT
+  pinMode(ledPin, OUTPUT);                // Set LED pin as OUTPUT
   for (int i = 0; i < 6; i++) {
-    pinMode(echoPins[i], INPUT);         // Set Echo pins as INPUT
+    pinMode(echoPins[i], INPUT);          // Set each Echo pin as INPUT
   }
 }
 
-void loop() { 
-  for (int i = 0; i < 6; i++) { // Loop through each sensor to read Echo pins
-    // Send pulse from the shared Trig pin
+void loop() {
+  bool objectDetected = false;  // Track if any sensor detects an object within 10 cm
+
+  for (int i = 0; i < 6; i++) {
+    // Pulse each sensor individually
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
-   
-    duration = pulseIn(echoPins[i], HIGH);     // Read the Echo pin
-   
-    if (duration == 0) {   // Check if duration is valid
-      distance[i] = -1;  // Set to -1 if no echo received
+    
+    // Read the echo pin for the current sensor
+    duration = pulseIn(echoPins[i], HIGH);
+
+    // If no echo received, mark it as no echo (-1)
+    if (duration == 0) {
+      distance[i] = -1;  // No echo
     } else {
-      distance[i] = duration * 0.034 / 2;  // Calculate distance in cm
-    }   
-    // Small delay to prevent interference
-    delay(50); // Adjust delay as necessary
-  }
-  
-  Serial.print("Sensor Distances: "); // Print all distances in one line
-  for (int i = 0; i < 6; i++) {
-    if (distance[i] == -1) {
-      Serial.print("No Echo "); // Indicate no echo received
+      // Calculate distance in cm (duration * speed of sound (0.034) / 2)
+      distance[i] = duration * 0.034 / 2;
+    }
+
+    // Check if object is within 10 cm and set flag
+    if (distance[i] <= 10 && distance[i] != -1) {
+      objectDetected = true;  // Object detected within 10 cm
+    }
+    
+    // Send sensor distance to Processing via Serial
+    if (i < 5) {
+      Serial.print(distance[i]);   // Send value followed by a comma
+      Serial.print(",");
     } else {
-      Serial.print(distance[i]);
-      Serial.print(" cm");
-    } 
-    if (i < 5) { // Avoid printing a comma after the last sensor
-      Serial.print(", ");
+      Serial.println(distance[i]); // For the last sensor, send value followed by a newline
     }
   }
-  Serial.println(); // New line for next measurement
-  delay(100); // Delay before starting next loop iteration
+
+  // Control the LED based on object detection
+  if (objectDetected) {
+    digitalWrite(ledPin, HIGH);  // Turn LED on if any sensor detects an object within 10 cm
+  } else {
+    digitalWrite(ledPin, LOW);   // Turn LED off if no objects are detected
+  }
+
+  // Small delay to prevent sensor interference
+  delay(10);
 }
